@@ -329,9 +329,9 @@ resolve_version(Dep, DepVsn, Hash, HexRegistry, State) ->
     case valid_vsn(DepVsn) of
         false ->
             {error, {invalid_vsn, DepVsn}};
-        _ ->
+        V ->
             Fun = fun(Repo) ->
-                      case resolve_version_(Dep, DepVsn, Repo, HexRegistry, State) of
+                      case resolve_version_(Dep, V, Repo, HexRegistry, State) of
                           none ->
                               not_found;
                           {ok, Vsn} ->
@@ -391,10 +391,20 @@ rm_ws(R) ->
 
 valid_vsn(Vsn) ->
     %% Regepx from https://github.com/sindresorhus/semver-regex/blob/master/index.js
+    do_valid_vsn(binary:split(Vsn, <<" or ">>)).
+
+do_valid_vsn([]) ->
+    false;
+do_valid_vsn([V | T]) ->
     SemVerRegExp = "v?(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(\\.(0|[1-9][0-9]*))?"
         "(-[0-9a-z-]+(\\.[0-9a-z-]+)*)?(\\+[0-9a-z-]+(\\.[0-9a-z-]+)*)?",
     SupportedVersions = "^(>=?|<=?|~>|==)?\\s*" ++ SemVerRegExp ++ "$",
-    re:run(Vsn, SupportedVersions, [unicode]) =/= nomatch.
+    case re:run(V, SupportedVersions, [unicode]) of
+        nomatch ->
+            do_valid_vsn(T);
+        _ ->
+            V
+    end.
 
 highest_matching(Dep, Vsn, Repo, HexRegistry, State) ->
     find_highest_matching_(Dep, Vsn, #{name => Repo}, HexRegistry, State).
